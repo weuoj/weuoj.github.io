@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Unstoppable Poster Boy</title>
+<style>
+  html,body { height:100%; margin:0; background:#000; }
+  body {
+    user-select: none;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+  #rickVideo {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  #gate {
+    position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
+    background: rgba(0,0,0,.85);
+  }
+  #start {
+    font: 600 18px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    padding: 14px 20px; border: 0; border-radius: 10px;
+    box-shadow: 0 0 18px rgba(122, 93, 255, .7), inset 0 0 0 1px rgba(255,255,255,.2);
+    background: linear-gradient(180deg, #7953ff, #5b35ff);
+    color: #fff; cursor: pointer;
+  }
+  #start:focus { outline: 2px solid #bfa7ff; outline-offset: 3px; }
+</style>
+</head>
+<body>
+
+<video id="rickVideo" playsinline>
+  <source src="/videos/posterboy.mp4" type="video/mp4" />
+</video>
+
+<div id="gate" aria-modal="true" role="dialog">
+  <button id="start" aria-label="Start video with sound and fullscreen">▶ Click to Start with Sound</button>
+</div>
+
+<script>
+  const video = document.getElementById('rickVideo');
+  const gate  = document.getElementById('gate');
+  const startBtn = document.getElementById('start');
+
+  function focusStartButton() {
+    if (gate.style.display !== 'none') {
+      startBtn.tabIndex = 0;
+      startBtn.focus({ preventScroll: true });
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', focusStartButton);
+
+  function preStartKeyHandler(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      focusStartButton();
+      return;
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && document.activeElement === startBtn) {
+      e.preventDefault();
+      startBtn.click();
+      return;
+    }
+    if (e.key !== 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+  ['keydown','keypress','keyup'].forEach(type =>
+    window.addEventListener(type, preStartKeyHandler, { capture: true })
+  );
+
+  document.addEventListener('focusin', (e) => {
+    if (gate.style.display !== 'none' && e.target !== startBtn) {
+      e.stopPropagation();
+      focusStartButton();
+    }
+  });
+
+  async function startPlayback() {
+    try {
+      video.muted = false;
+      await video.play();
+    } catch {
+      video.muted = true;
+      await video.play().catch(()=>{});
+    }
+
+    try {
+      const el = document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch {}
+
+    gate.style.display = 'none';
+
+    video.addEventListener('pause', () => video.play());
+
+    ['keydown','keypress','keyup'].forEach(type =>
+      window.removeEventListener(type, preStartKeyHandler, { capture: true })
+    );
+
+    const strongBlocker = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+    ['keydown','keypress','keyup'].forEach(type =>
+      window.addEventListener(type, strongBlocker, { capture: true })
+    );
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && video.paused) {
+        video.play().catch(()=>{});
+      }
+    });
+    window.addEventListener('blur', () => {
+      if (video.paused) video.play().catch(()=>{});
+    });
+  }
+
+  startBtn.addEventListener('click', startPlayback, { once: true });
+
+  video.controls = false;
+  window.addEventListener('contextmenu', e => e.preventDefault());
+  ['dragstart','selectstart'].forEach(ev =>
+    window.addEventListener(ev, e => e.preventDefault())
+  );
+
+  window.addEventListener('beforeunload', (e) => {
+    e.preventDefault();
+    e.returnValue = 'areyou sure?';
+  });
+</script>
+</body>
+</html>
