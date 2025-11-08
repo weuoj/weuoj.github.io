@@ -8,7 +8,7 @@
   html,body { height:100%; margin:0; background:#000; }
   body {
     user-select: none;
-    overscroll-behavior: none; /* stop pull-to-refresh on mobile */
+    overscroll-behavior: none;
     touch-action: none;
   }
   #rickVideo {
@@ -16,7 +16,6 @@
     width: 100%; height: 100%;
     object-fit: cover;
   }
-  /* Gate overlay */
   #gate {
     position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
     background: rgba(0,0,0,.85);
@@ -34,7 +33,7 @@
 <body>
 
 <video id="rickVideo" playsinline>
-  <source src="https://cdn.mtdv.me/video/rick.mp4" type="video/mp4" />
+  <source src="/videos/rickroll.mp4" type="video/mp4" />
 </video>
 
 <div id="gate" aria-modal="true" role="dialog">
@@ -46,33 +45,26 @@
   const gate  = document.getElementById('gate');
   const startBtn = document.getElementById('start');
 
-  // --- Focus behavior so Tab highlights the button immediately ---
   function focusStartButton() {
-    // Ensure the button is focusable then focus it
     if (gate.style.display !== 'none') {
       startBtn.tabIndex = 0;
       startBtn.focus({ preventScroll: true });
     }
   }
 
-  // On load, put focus on the Start button
   window.addEventListener('DOMContentLoaded', focusStartButton);
 
-  // If user presses Tab anywhere before starting, focus the Start button
   function preStartKeyHandler(e) {
-    // Let Tab direct focus to the button
     if (e.key === 'Tab') {
       e.preventDefault();
       focusStartButton();
       return;
     }
-    // Let Enter/Space activate the button when it's focused
     if ((e.key === 'Enter' || e.key === ' ') && document.activeElement === startBtn) {
       e.preventDefault();
       startBtn.click();
       return;
     }
-    // Block other keys aggressively pre-start
     if (e.key !== 'Tab') {
       e.preventDefault();
       e.stopPropagation();
@@ -82,7 +74,6 @@
     window.addEventListener(type, preStartKeyHandler, { capture: true })
   );
 
-  // Keep focus trapped on the button while gate is visible
   document.addEventListener('focusin', (e) => {
     if (gate.style.display !== 'none' && e.target !== startBtn) {
       e.stopPropagation();
@@ -90,37 +81,30 @@
     }
   });
 
-  // --- Start logic (user gesture required for sound/fullscreen) ---
   async function startPlayback() {
     try {
       video.muted = false;
       await video.play();
     } catch {
-      // If blocked, fallback to muted then allow user to unmute with media key/click later
       video.muted = true;
       await video.play().catch(()=>{});
     }
 
-    // Try fullscreen after user action
     try {
       const el = document.documentElement;
       if (el.requestFullscreen) await el.requestFullscreen();
       else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
     } catch {}
 
-    // Hide gate and resume “unstoppable” behavior
     gate.style.display = 'none';
 
-    // Prevent pausing
     video.addEventListener('pause', () => video.play());
 
-    // Replace pre-start key handler with strong blocker (after gesture)
     ['keydown','keypress','keyup'].forEach(type =>
       window.removeEventListener(type, preStartKeyHandler, { capture: true })
     );
 
     const strongBlocker = (e) => {
-      // Let nothing through (browsers may still allow reserved combos)
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -129,7 +113,6 @@
       window.addEventListener(type, strongBlocker, { capture: true })
     );
 
-    // Keep playing if refocused
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && video.paused) {
         video.play().catch(()=>{});
@@ -142,14 +125,12 @@
 
   startBtn.addEventListener('click', startPlayback, { once: true });
 
-  // --- Misc hardening ---
   video.controls = false;
   window.addEventListener('contextmenu', e => e.preventDefault());
   ['dragstart','selectstart'].forEach(ev =>
     window.addEventListener(ev, e => e.preventDefault())
   );
 
-  // “Are you sure?” on tab close (string may be ignored; confirms still show)
   window.addEventListener('beforeunload', (e) => {
     e.preventDefault();
     e.returnValue = 'areyou sure?';
